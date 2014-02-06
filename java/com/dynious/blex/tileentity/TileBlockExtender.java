@@ -4,6 +4,8 @@ import buildcraft.api.power.IPowerReceptor;
 import buildcraft.api.power.PowerHandler;
 import cofh.api.energy.IEnergyHandler;
 import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import dan200.computer.api.IComputerAccess;
 import dan200.computer.api.ILuaContext;
 import dan200.computer.api.IPeripheral;
@@ -40,7 +42,6 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
 
 {
     protected ForgeDirection connectedDirection = ForgeDirection.UNKNOWN;
-    protected ForgeDirection previousConnectedDirection = ForgeDirection.UNKNOWN;
     protected IInventory inventory;
     protected int[] accessibleSlots;
     protected IFluidHandler fluidHandler;
@@ -49,10 +50,13 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
     protected IEnergyHandler energyHandler;
     protected TileEntity[] tiles = new TileEntity[ForgeDirection.values().length];
     public boolean blocksChanged = true;
+    public boolean isInitialConnectionCheck = true;
     protected float lightAmount = 0F;
     protected int recheckTiles = 0;
     protected boolean isRedstonePowered = false;
     protected boolean isRedstoneEnabled = true;
+    @SideOnly(Side.CLIENT)
+    public boolean hasConnection = false;
 
     public TileBlockExtender()
     {
@@ -64,7 +68,9 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
         this.connectedDirection = ForgeDirection.getOrientation(connectedSide);
         this.blocksChanged = true;
         if (worldObj != null)
+        {
             worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord));
+        }
     }
 
     public ForgeDirection getConnectedDirection()
@@ -159,98 +165,116 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
                 }
             }
             this.checkRedstonePower();
-            blocksChanged = false;
+            TileEntity tile = getConnectedTile();
+            boolean needRecheck = checkConnectedDirection(tile);
+            if (!needRecheck)
+                blocksChanged = false;
         }
-        if (canConnect())
+        /*
+        recheckTiles++;
+        if (recheckTiles >= 20)
         {
             TileEntity tile = getConnectedTile();
-            if (connectedDirection != previousConnectedDirection)
-            {
-                resetConnections();
-                checkConnectedDirection(tile);
-                previousConnectedDirection = connectedDirection;
-                worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
-            }
-            if (!hasConnection())
-            {
-                checkConnectedDirection(tile);
-            }
-            else if (tile == null)
-            {
-                resetConnections();
-            }
-            recheckTiles++;
-            if (recheckTiles >= 20)
-            {
-                checkConnectedDirection(tile);
-                recheckTiles = 0;
-            }
+            checkConnectedDirection(tile);
+            recheckTiles = 0;
+            worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+            worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord));
         }
+        */
         if (lightAmount > 0F)
         {
             lightAmount = lightAmount - 0.01F;
         }
     }
 
-    protected void checkConnectedDirection(TileEntity tile)
+    protected boolean checkConnectedDirection(TileEntity tile)
     {
-        if (tile != null && !isLooping(tile))
+        if (tile != null && canConnect() && !isLooping(tile))
         {
-            boolean updated = false;
-            if (tile instanceof IInventory)
+            IInventory previousInventory = inventory;
+            IFluidHandler previousFluidHandler = fluidHandler;
+            IPowerReceptor previousPowerReceptor = powerReceptor;
+            IEnergySink previousEnergySink = energySink;
+            IEnergyHandler previousEnergyHandler = energyHandler;
+            
+            if (tile instanceof TileBlockExtender)
             {
-                if (inventory == null)
+                if (isInitialConnectionCheck) 
                 {
-                    updated = true;
+                    // wait until non-BlockExtender connections are made and then recheck
+                    isInitialConnectionCheck = false;
+                    return true;
                 }
-                setInventory((IInventory) tile);
+                TileBlockExtender connectedBlockExtender = (TileBlockExtender) tile;
+                setInventory(connectedBlockExtender.inventory);
+                setFluidHandler(connectedBlockExtender.fluidHandler);
+                setPowerReceptor(connectedBlockExtender.powerReceptor);
+                setEnergySink(connectedBlockExtender.energySink);
+                setEnergyHandler(connectedBlockExtender.energyHandler);
             }
-            if (tile instanceof IFluidHandler)
+            else
             {
-                if (fluidHandler == null)
-                {
-                    updated = true;
-                }
-                setFluidHandler((IFluidHandler) tile);
+                if (tile instanceof IInventory)
+                    setInventory((IInventory) tile);
+                else
+                    setInventory(null);
+    
+                if (tile instanceof IFluidHandler)
+                    setFluidHandler((IFluidHandler) tile);
+                else
+                    setFluidHandler(null);
+                
+                if (Loader.isModLoaded("BuildCraft|Energy") && tile instanceof IPowerReceptor)
+                    setPowerReceptor((IPowerReceptor) tile);
+                else
+                    setPowerReceptor(null);
+                
+                if (Loader.isModLoaded("IC2") && tile instanceof IEnergySink)
+                    setEnergySink((IEnergySink) tile);
+                else
+                    setEnergySink(null);
+    
+                if (Loader.isModLoaded("CoFHCore") && tile instanceof IEnergyHandler)
+                    setEnergyHandler((IEnergyHandler) tile);
+                else
+                    setEnergyHandler(null);
             }
-            if (Loader.isModLoaded("BuildCraft|Energy") && tile instanceof IPowerReceptor)
+            
+            if (previousInventory != inventory || previousFluidHandler != fluidHandler || 
+                    previousPowerReceptor != powerReceptor || previousEnergySink != energySink || 
+                    previousEnergyHandler != energyHandler)
             {
-                if (powerReceptor == null)
-                {
-                    updated = true;
-                }
-                setPowerReceptor((IPowerReceptor) tile);
-            }
-            if (Loader.isModLoaded("IC2") && tile instanceof IEnergySink)
-            {
-                if (energySink == null)
-                {
-                    updated = true;
-                }
-                setEnergySink((IEnergySink) tile);
-            }
-            if (Loader.isModLoaded("CoFHCore") && tile instanceof IEnergyHandler)
-            {
-                if (energyHandler == null)
-                {
-                    updated = true;
-                }
-                setEnergyHandler((IEnergyHandler) tile);
-            }
-            if (updated)
-            {
-                worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord));
+                worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord), connectedDirection.ordinal());
+                worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
             }
         }
+        else
+        {
+            resetConnections();
+        }
+
+        recheckTiles = 0;
+        isInitialConnectionCheck = false;
+        return false;
     }
 
-    protected void resetConnections()
+    protected boolean resetConnections()
     {
+        boolean hadConnections = hasConnection();
+        
         setInventory(null);
         setFluidHandler(null);
         setPowerReceptor(null);
         setEnergySink(null);
         setEnergyHandler(null);
+        
+        if (hadConnections)
+        {
+            worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord), connectedDirection.ordinal());
+            worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
+        }
+        
+        return hadConnections;
     }
 
     public boolean hasConnection()
@@ -876,7 +900,7 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
         setConnectedSide(pkt.data.getByte("side"));
         setRedstoneTransmissionActive(pkt.data.getBoolean("redstone"));
         setRedstoneTransmissionEnabled(pkt.data.getBoolean("redstoneEnabled"));
-    }
+        hasConnection = (pkt.data.getBoolean("hasConnection"));    }
 
     @Override
     public Packet getDescriptionPacket()
@@ -885,7 +909,7 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
         compound.setByte("side", (byte) connectedDirection.ordinal());
         compound.setBoolean("redstone", this.isRedstoneTransmissionActive());
         compound.setBoolean("redstoneEnabled", this.isRedstoneTransmissionEnabled());
-        return new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, compound);
+        compound.setBoolean("hasConnection", this.hasConnection());        return new Packet132TileEntityData(xCoord, yCoord, zCoord, 1, compound);
     }
 
     public boolean rotateBlock()

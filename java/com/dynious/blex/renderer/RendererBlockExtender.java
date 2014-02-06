@@ -28,7 +28,7 @@ public class RendererBlockExtender extends TileEntitySpecialRenderer
             GL11.glPushMatrix();
 
             float yOffset = 0.0F;
-            if (tile.hasConnection())
+            if (tile.hasConnection)
                 yOffset = (float) Math.sin((float) (System.currentTimeMillis() / 2 % (Math.PI * 1000F)) / 100F) / 10F;
 
             GL11.glTranslated(0, 1F + yOffset, 0);
