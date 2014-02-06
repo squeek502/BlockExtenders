@@ -196,10 +196,10 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
             IPowerReceptor previousPowerReceptor = powerReceptor;
             IEnergySink previousEnergySink = energySink;
             IEnergyHandler previousEnergyHandler = energyHandler;
-            
+
             if (tile instanceof TileBlockExtender)
             {
-                if (isInitialConnectionCheck) 
+                if (isInitialConnectionCheck)
                 {
                     // wait until non-BlockExtender connections are made and then recheck
                     isInitialConnectionCheck = false;
@@ -218,30 +218,30 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
                     setInventory((IInventory) tile);
                 else
                     setInventory(null);
-    
+
                 if (tile instanceof IFluidHandler)
                     setFluidHandler((IFluidHandler) tile);
                 else
                     setFluidHandler(null);
-                
+
                 if (Loader.isModLoaded("BuildCraft|Energy") && tile instanceof IPowerReceptor)
                     setPowerReceptor((IPowerReceptor) tile);
                 else
                     setPowerReceptor(null);
-                
+
                 if (Loader.isModLoaded("IC2") && tile instanceof IEnergySink)
                     setEnergySink((IEnergySink) tile);
                 else
                     setEnergySink(null);
-    
+
                 if (Loader.isModLoaded("CoFHCore") && tile instanceof IEnergyHandler)
                     setEnergyHandler((IEnergyHandler) tile);
                 else
                     setEnergyHandler(null);
             }
-            
-            if (previousInventory != inventory || previousFluidHandler != fluidHandler || 
-                    previousPowerReceptor != powerReceptor || previousEnergySink != energySink || 
+
+            if (previousInventory != inventory || previousFluidHandler != fluidHandler ||
+                    previousPowerReceptor != powerReceptor || previousEnergySink != energySink ||
                     previousEnergyHandler != energyHandler)
             {
                 worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord), connectedDirection.ordinal());
@@ -261,19 +261,19 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
     protected boolean resetConnections()
     {
         boolean hadConnections = hasConnection();
-        
+
         setInventory(null);
         setFluidHandler(null);
         setPowerReceptor(null);
         setEnergySink(null);
         setEnergyHandler(null);
-        
+
         if (hadConnections)
         {
             worldObj.notifyBlocksOfNeighborChange(xCoord, yCoord, zCoord, worldObj.getBlockId(this.xCoord, this.yCoord, this.zCoord), connectedDirection.ordinal());
             worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
         }
-        
+
         return hadConnections;
     }
 
