@@ -189,7 +189,7 @@ public class TileBlockExtender extends TileEntity implements ISidedInventory, IF
 
     protected boolean checkConnectedDirection(TileEntity tile)
     {
-        if (tile != null && canConnect() && !isLooping(tile))
+        if (tile != null && canConnect() && (!(tile instanceof TileBlockExtender) || ((TileBlockExtender) tile).hasConnection()) && !isLooping(tile))
         {
             IInventory previousInventory = inventory;
             IFluidHandler previousFluidHandler = fluidHandler;

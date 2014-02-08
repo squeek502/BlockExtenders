@@ -46,13 +46,22 @@ public class TileAdvancedFilteredBlockExtender extends TileBlockExtender impleme
         return insertDirection;
     }
 
+    @Override
     public void setInsertDirection(int from, int value)
     {
         int numDirs = ForgeDirection.VALID_DIRECTIONS.length;
         value = (value % numDirs + numDirs) % numDirs;
-        insertDirection[from] = (byte) value;
+        
+        if (value != insertDirection[from])
+        {
+            insertDirection[from] = (byte) value;
+            // notify the block in that direction that the insert direction changed
+            ForgeDirection dir = ForgeDirection.getOrientation(from);
+            worldObj.notifyBlockOfNeighborChange(xCoord + dir.offsetX, yCoord + dir.offsetY, zCoord + dir.offsetZ, worldObj.getBlockId(xCoord, yCoord, zCoord));
+        }
     }
 
+    @Override
     public void setConnectedSide(int connectedSide)
     {
         super.setConnectedSide(connectedSide);
