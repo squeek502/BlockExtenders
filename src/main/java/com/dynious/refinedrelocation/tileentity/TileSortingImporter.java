@@ -1,6 +1,7 @@
 package com.dynious.refinedrelocation.tileentity;
 
 import com.dynious.refinedrelocation.helper.GuiHelper;
+import com.dynious.refinedrelocation.helper.OreDictionaryHelper;
 import com.dynious.refinedrelocation.lib.Names;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ICrafting;
@@ -139,8 +140,17 @@ public class TileSortingImporter extends TileSortingConnector implements IInvent
             {
                 return;
             }
-            int id = OreDictionary.getOreID(itemstack);
-            if (idList.contains(id))
+            int[] oreIDs = OreDictionaryHelper.getOreIDs(itemstack);
+            int id = -1;
+            for (int oreID : oreIDs)
+            {
+                if (idList.contains(oreID))
+                {
+                    id = oreID;
+                    break;
+                }
+            }
+            if (id != -1)
             {
                 ItemStack stack = itemList.get(idList.indexOf(id)).copy();
                 stack.stackSize = itemstack.stackSize;
@@ -163,18 +173,18 @@ public class TileSortingImporter extends TileSortingConnector implements IInvent
             }
             else if (itemstack != null)
             {
-                int id = OreDictionary.getOreID(itemstack);
-                if (id != -1)
+                int[] oreIDs = OreDictionaryHelper.getOreIDs(itemstack);
+                for (int oreID : oreIDs)
                 {
-                    if (i - 1 < itemList.size() && (!idList.contains(id) || id == idList.get(index)))
+                    if (i - 1 < itemList.size() && (!idList.contains(oreID) || oreID == idList.get(index)))
                     {
                         itemList.set(index, itemstack);
-                        idList.set(index, id);
+                        idList.set(index, oreID);
                     }
-                    else if (index == itemList.size() && !idList.contains(id))
+                    else if (index == itemList.size() && !idList.contains(oreID))
                     {
                         itemList.add(itemstack);
-                        idList.add(id);
+                        idList.add(oreID);
                     }
                 }
             }

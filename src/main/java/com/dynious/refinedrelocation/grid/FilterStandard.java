@@ -1,6 +1,7 @@
 package com.dynious.refinedrelocation.grid;
 
 import com.dynious.refinedrelocation.api.filter.IFilterGUI;
+import com.dynious.refinedrelocation.helper.OreDictionaryHelper;
 import com.google.common.primitives.Booleans;
 import cpw.mods.fml.common.ObfuscationReflectionHelper;
 import cpw.mods.fml.relauncher.ReflectionHelper;
@@ -16,6 +17,7 @@ import net.minecraftforge.oredict.OreDictionary;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.List;
 
 public class FilterStandard implements IFilterGUI
 {
@@ -47,47 +49,28 @@ public class FilterStandard implements IFilterGUI
     {
         if (itemStack != null)
         {
-            String oreName = null;
+            List<String> oreNames = null;
+
+            if ((getUserFilter() != null && getUserFilter().contains("!")) || Booleans.contains(customFilters, true))
+                oreNames = OreDictionaryHelper.getOreNames(itemStack);
 
             if (getUserFilter() != null && !getUserFilter().isEmpty())
             {
-                String filter = getUserFilter().toLowerCase().replaceAll("\\s+", "");
-                for (String s : filter.split(","))
+                String filters = getUserFilter().toLowerCase().replaceAll("\\s+", "");
+                for (String filter : filters.split(","))
                 {
-                    String filterName;
-                    if (s.contains("!"))
+                    if (filter.contains("!"))
                     {
-                        int id = OreDictionary.getOreID(itemStack);
-                        if (id == -1)
+                        filter = filter.replace("!", "");
+                        for (String oreName : oreNames)
                         {
-                            oreName = "";
-                            break;
-                        }
-                        filterName = oreName = OreDictionary.getOreName(id).toLowerCase().replaceAll("\\s+", "");
-                        s = s.replace("!", "");
-                    }
-                    else
-                    {
-                        filterName = itemStack.getDisplayName().toLowerCase().replaceAll("\\s+", "");
-                    }
-                    if (s.startsWith("*") && s.length() > 1)
-                    {
-                        if (s.endsWith("*") && s.length() > 2)
-                        {
-                            if (filterName.contains(s.substring(1, s.length() - 1)))
+                            if (stringMatchesWildcardPattern(oreName.toLowerCase().replaceAll("\\s+", ""), filter))
                                 return true;
                         }
-                        else if (filterName.endsWith(s.substring(1)))
-                            return true;
-                    }
-                    else if (s.endsWith("*") && s.length() > 1)
-                    {
-                        if (filterName.startsWith(s.substring(0, s.length() - 1)))
-                            return true;
                     }
                     else
                     {
-                        if (filterName.equalsIgnoreCase(s))
+                        if (stringMatchesWildcardPattern(itemStack.getDisplayName().toLowerCase().replaceAll("\\s+", ""), filter))
                             return true;
                     }
                 }
@@ -95,20 +78,7 @@ public class FilterStandard implements IFilterGUI
 
             if (Booleans.contains(customFilters, true))
             {
-                if (oreName == null)
-                {
-                    int id = OreDictionary.getOreID(itemStack);
-                    if (id == -1)
-                    {
-                        oreName = "";
-                    }
-                    else
-                    {
-                        oreName = OreDictionary.getOreName(id).toLowerCase().replaceAll("\\s+", "");
-                    }
-                }
-
-                if (!oreName.isEmpty())
+                for (String oreName : oreNames)
                 {
                     if (customFilters[0] && (oreName.contains("ingot") || itemStack.itemID == Item.ingotIron.itemID || itemStack.itemID == Item.ingotGold.itemID))
                         return true;
@@ -163,11 +133,37 @@ public class FilterStandard implements IFilterGUI
                             }
                         }
                     }
-                } catch (IllegalAccessException e)
+                }
+                catch (IllegalAccessException e)
                 {
                     e.printStackTrace();
                 }
             }
+        }
+        return false;
+    }
+
+    public boolean stringMatchesWildcardPattern(String string, String wildcardPattern)
+    {
+        if (wildcardPattern.startsWith("*") && wildcardPattern.length() > 1)
+        {
+            if (wildcardPattern.endsWith("*") && wildcardPattern.length() > 2)
+            {
+                if (string.contains(wildcardPattern.substring(1, wildcardPattern.length() - 1)))
+                    return true;
+            }
+            else if (string.endsWith(wildcardPattern.substring(1)))
+                return true;
+        }
+        else if (wildcardPattern.endsWith("*") && wildcardPattern.length() > 1)
+        {
+            if (string.startsWith(wildcardPattern.substring(0, wildcardPattern.length() - 1)))
+                return true;
+        }
+        else
+        {
+            if (string.equalsIgnoreCase(wildcardPattern))
+                return true;
         }
         return false;
     }
